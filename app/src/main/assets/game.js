@@ -19,6 +19,7 @@ try {
  }
 }catch{}
 let cursor=0,busy=false,autoAdvanceTimer=null;
+const machine=new TypewriterMechanism($('mechanicsCanvas'),document.querySelector('.machine-photo'),$('paper'));
 const soundPools={};
 for(const name of ['key_1','key_2','key_3','return']){
  soundPools[name]=Array.from({length:name==='return'?2:5},()=>{const clip=new Audio('sfx/'+name+'.wav');clip.preload='auto';clip.hidden=true;clip.dataset.sound=name;document.body.append(clip);clip.load();return clip;});
@@ -27,16 +28,19 @@ function pauseSounds(){Object.values(soundPools).flat().forEach(clip=>{clip.paus
 function save(){try{localStorage.setItem(STORAGE,JSON.stringify({...state,version:1}));}catch{}}
 function q(){return QUESTIONS[state.current];}function entry(){let e=state.entries[q().id];if(!Array.isArray(e)||e.length!==q().answer.length)e=state.entries[q().id]=Array(q().answer.length).fill('');return e;}function locks(){let l=state.locks[q().id];if(!Array.isArray(l))l=state.locks[q().id]=[];return l;}
 function isSolved(){return state.solved.includes(q().id);}
-function sound(kind='key'){
+function sound(kind='key',letter=''){
  if(!state.sound)return;
  // Actual recordings of typebars, margin bell and carriage return, never synthesized beeps.
- const name=kind==='bell'||kind==='return'?'return':kind==='erase'||kind==='wrong'?'key_3':Math.random()<.23?'key_2':'key_1';
+ const name=kind==='bell'||kind==='return'?'return':kind==='erase'||kind==='wrong'?'key_3':letter&&(letter.codePointAt(0)%4===0)?'key_2':'key_1';
  const pool=soundPools[name];let clip=pool.find(c=>c.paused||c.ended)||pool[0];
  clip.currentTime=0;clip.volume=kind==='wrong'?.35:name==='key_2'?.42:name==='return'?.92:.95;
- const play=clip.play();if(play&&play.catch)play.catch(()=>{});
+ clip.playbackRate=name==='return'?1: .985+((letter.codePointAt(0)||0)%5)*.007;const play=clip.play();if(play&&play.catch)play.catch(()=>{});
 }
 function animate(el,cls){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);}
-function strike(letter,kind='key'){sound(kind);if(state.vibration&&navigator.vibrate)navigator.vibrate(8);animate($('typebar'),'strike');const key=[...document.querySelectorAll('.key')].find(k=>k.textContent===letter);if(key){key.classList.add('pressed');setTimeout(()=>key.classList.remove('pressed'),110);}}
+function strike(letter,kind='key',onImpact=()=>{}){
+ const questionId=q().id;
+ machine.enqueue({letter,kind:kind==='erase'?'erase':'key',onStart:()=>{if(state.vibration&&navigator.vibrate)navigator.vibrate(8);},onImpact:()=>{if(q().id!==questionId||isSolved()||busy)return;sound(kind,letter);onImpact();}});
+}
 function feedback(message,type=''){$('feedback').textContent=message;$('feedback').className=type;}
 function render(){
  const item=q();entry();if(isSolved())state.entries[item.id]=item.answer.split('');
@@ -46,35 +50,31 @@ function render(){
  $('question').textContent=item.clue;$('length').textContent=`${item.answer.length} HARF`;$('difficulty').textContent=item.difficulty;$('hintCount').textContent=state.hints;
  $('slots').replaceChildren();entry().forEach((letter,i)=>{const b=document.createElement('button');b.className='slot'+(locks().includes(i)?' fixed':'')+(cursor===i&&!isSolved()?' active':'');b.textContent=letter;b.setAttribute('aria-label',`${i+1}. harf: ${letter||'boş'}`);b.onclick=()=>{if(!busy&&!isSolved()){cursor=i;renderSlots();}};$('slots').append(b);});
  $('check').innerHTML=isSolved()?'SONRAKİ SORU <span>→</span>':'KONTROL ET <span>↵</span>';$('erase').disabled=isSolved();$('hint').disabled=isSolved()||state.hints===0;
- $('carriage').style.transform=`translateX(${-Math.min(cursor,12)*1.1}px)`;feedback(isSolved()?'Bu satır tamamlandı.':'');
+ machine.setColumn(isSolved()?item.answer.length:cursor,item.answer.length);feedback(isSolved()?'Bu satır tamamlandı.':'');
 }
-function renderSlots(){const items=$('slots').children;entry().forEach((v,i)=>{items[i].textContent=v;items[i].classList.toggle('active',i===cursor&&!isSolved());items[i].classList.toggle('fixed',locks().includes(i));});$('carriage').style.transform=`translateX(${-Math.min(cursor,12)*1.1}px)`;}
+function renderSlots(position=cursor){const items=$('slots').children;entry().forEach((v,i)=>{items[i].textContent=v;items[i].classList.toggle('active',i===cursor&&!isSolved());items[i].classList.toggle('fixed',locks().includes(i));});machine.setColumn(position,q().answer.length);}
 function nextEditable(from){for(let n=0;n<entry().length;n++){const i=(from+n)%entry().length;if(!locks().includes(i)&&!entry()[i])return i;}for(let n=0;n<entry().length;n++){const i=(from+n)%entry().length;if(!locks().includes(i))return i;}return 0;}
-function type(letter){if(busy||isSolved())return;if(locks().includes(cursor))cursor=nextEditable(cursor);if(locks().includes(cursor))return;strike(letter);entry()[cursor]=letter;cursor=nextEditable(cursor+1);renderSlots();feedback('');save();if(entry().every(Boolean))check();}
-function erase(){if(busy||isSolved())return;let i=cursor;if(!entry()[i]||locks().includes(i)){let found=false;for(let n=1;n<=entry().length;n++){const p=(cursor-n+entry().length)%entry().length;if(!locks().includes(p)&&entry()[p]){i=p;found=true;break;}}if(!found)return;}entry()[i]='';cursor=i;strike('','erase');renderSlots();feedback('');save();}
+function type(letter){if(busy||isSolved())return;strike(letter,'key',()=>{if(locks().includes(cursor))cursor=nextEditable(cursor);if(locks().includes(cursor))return;entry()[cursor]=letter;cursor=nextEditable(cursor+1);renderSlots(entry().every(Boolean)?entry().length:cursor);feedback('');save();if(entry().every(Boolean))check();});}
+function erase(){if(busy||isSolved())return;strike('','erase',()=>{let i=cursor;if(!entry()[i]||locks().includes(i)){let found=false;for(let n=1;n<=entry().length;n++){const p=(cursor-n+entry().length)%entry().length;if(!locks().includes(p)&&entry()[p]){i=p;found=true;break;}}if(!found)return;}entry()[i]='';cursor=i;renderSlots();feedback('');save();});}
 function check(){if(busy)return;if(isSolved()){next();return;}if(!entry().every(Boolean)){feedback('Cevabın bütün harflerini tamamla.');return;}if(entry().join('')!==q().answer){sound('wrong');animate($('paper'),'shake');feedback('Bu cevap uymadı. Harfleri yeniden düşün.','error');return;}
- state.solved.push(q().id);const points=Math.max(20,100-locks().length*15);state.score+=points;if(state.solved.length%5===0)state.hints+=2;save();sound('bell');render();feedback(`Doğru! +${points} puan${state.solved.length%5===0?' · 2 harf açma kazandın':''}`,'success');busy=true;const completedId=q().id;autoAdvanceTimer=setTimeout(()=>{autoAdvanceTimer=null;busy=false;if(q().id!==completedId||!state.solved.includes(completedId))return;if(state.solved.length===QUESTIONS.length){show(`<h2>Bütün satırlar tamam!</h2><p>${QUESTIONS.length} sorunun tamamını çözdün.</p><p class="answer">${state.score} PUAN</p><button class="action" data-action="chapters">Bölümleri gör</button>`);}else{next(false);}},850);
+ machine.clearQueued();state.solved.push(q().id);const points=Math.max(20,100-locks().length*15);state.score+=points;if(state.solved.length%5===0)state.hints+=2;save();render();feedback(`Doğru! +${points} puan${state.solved.length%5===0?' · 2 harf açma kazandın':''}`,'success');busy=true;const completedId=q().id;autoAdvanceTimer=setTimeout(()=>{autoAdvanceTimer=null;busy=false;if(q().id!==completedId||!state.solved.includes(completedId))return;if(state.solved.length===QUESTIONS.length){show(`<h2>Bütün satırlar tamam!</h2><p>${QUESTIONS.length} sorunun tamamını çözdün.</p><p class="answer">${state.score} PUAN</p><button class="action" data-action="chapters">Bölümleri gör</button>`);}else{next();}},850);
 }
-function go(id){if(busy)return;state.current=id;cursor=nextEditable(0);save();render();animate($('paper'),'advance');}
-function next(playSound=true){let id=(q().id+1)%QUESTIONS.length;for(let n=0;n<QUESTIONS.length;n++){const c=(q().id+1+n)%QUESTIONS.length;if(!state.solved.includes(c)){id=c;break;}}if(playSound)sound('return');go(id);}
-function hint(){if(busy||isSolved()||state.hints<=0)return;let pos=entry().findIndex((c,i)=>c!==q().answer[i]&&!locks().includes(i));if(pos<0){check();return;}entry()[pos]=q().answer[pos];locks().push(pos);state.hints--;cursor=nextEditable(pos+1);strike(entry()[pos]);save();render();feedback('Bir harf açıldı.');if(entry().every(Boolean))check();}
+function go(id){if(busy)return;machine.clearQueued();state.current=id;cursor=nextEditable(0);save();render();animate($('paper'),'advance');}
+function next(playSound=true){if(busy)return;let id=(q().id+1)%QUESTIONS.length;for(let n=0;n<QUESTIONS.length;n++){const c=(q().id+1+n)%QUESTIONS.length;if(!state.solved.includes(c)){id=c;break;}}busy=true;if(playSound)sound('return');machine.returnCarriage(()=>{state.current=id;cursor=nextEditable(0);save();render();animate($('paper'),'advance');},()=>{busy=false;});}
+function hint(){if(busy||isSolved()||state.hints<=0||machine.isWorking())return;const pos=entry().findIndex((c,i)=>c!==q().answer[i]&&!locks().includes(i));if(pos<0){check();return;}strike(q().answer[pos],'key',()=>{entry()[pos]=q().answer[pos];locks().push(pos);state.hints--;cursor=nextEditable(pos+1);save();render();renderSlots(entry().every(Boolean)?entry().length:cursor);feedback('Bir harf açıldı.');if(entry().every(Boolean))check();});}
 function show(html){$('dialogContent').innerHTML=html;if(!$('dialog').open)$('dialog').showModal();}
 function close(){$('dialog').close();}
 function chapters(){show(`<h2>Sayfalar</h2><p>${state.solved.length} / ${QUESTIONS.length} soru tamamlandı · ${state.score} puan</p>${CHAPTERS.map((name,i)=>{const total=QUESTIONS.filter(x=>x.chapter===i&&state.solved.includes(x.id)).length;return `<button class="chapter" data-chapter="${i}">${String(i+1).padStart(2,'0')} · ${name}<small>${total}/10</small></button>`;}).join('')}`);}
 function chapterQuestions(c){show(`<h2>${CHAPTERS[c]}</h2><p>Bir soru seç.</p>${QUESTIONS.filter(x=>x.chapter===c).map(x=>`<button class="chapter" data-question="${x.id}">${state.solved.includes(x.id)?'✓':'○'} Soru ${x.id+1}<small>${x.category} · ${x.answer.length} harf</small></button>`).join('')}<button class="action secondary" data-action="chapters">Bütün sayfalar</button>`);}
 function settings(){show(`<h2>Daktilo ayarları</h2><button class="action secondary" data-action="sound">Mekanik sesler: ${state.sound?'AÇIK':'KAPALI'}</button><button class="action secondary" data-action="vibration">Tuş titreşimi: ${state.vibration?'AÇIK':'KAPALI'}</button><p>Harfleri daktilonun tuşlarıyla yaz. Yanlış bir harfi değiştirmek için kutusuna dokun. Doğru cevap 100 puan; açılan her harf 15 puan düşürür. Her 5 doğru cevapta 2 harf açma kazanırsın. Takıldığın soruyu sonra çözebilirsin.</p><button class="action secondary" data-action="reset">İlerlemeyi sıfırla</button>`);}
-const KEY_ROWS=[
- {letters:'QWERTYUIOPĞÜ',xs:[40,111.2,182.4,253.6,324.8,396,467.2,538.4,609.6,680.8,752,823.2],y:1130},
- {letters:'ASDFGHJKLŞİ',xs:[43,120.7,198.4,276.1,353.8,431.5,509.2,586.9,664.6,742.3,820],y:1244},
- {letters:'ZXCVBNMÖÇ',xs:[56,150,244,338,432,526,620,714,808],y:1353}
-];
-KEY_ROWS.forEach((row,rowIndex)=>{const div=document.createElement('div');div.className='key-row';[...row.letters].forEach((letter,i)=>{const b=document.createElement('button');b.className='key';b.style.left=(row.xs[i]/863*100)+'%';b.style.top=((row.y-670)/955*100)+'%';const glyph=document.createElement('span');glyph.textContent=letter;b.append(glyph);b.setAttribute('aria-label',letter+' harfi');b.onclick=()=>type(letter);div.append(b);});$('keys').append(div);});
+const KEY_ROWS=[{letters:'QWERTYUIOPĞÜ'},{letters:'ASDFGHJKLŞİ'},{letters:'ZXCVBNMÖÇ'}];
+KEY_ROWS.forEach(row=>{const div=document.createElement('div');div.className='key-row';[...row.letters].forEach(letter=>{const pos=TYPEWRITER_KEYS.find(k=>k.letter===letter);const b=document.createElement('button');b.className='key';b.style.left=(pos.x/863*100)+'%';b.style.top=((pos.y-670)/955*100)+'%';const glyph=document.createElement('span');glyph.textContent=letter;b.append(glyph);b.setAttribute('aria-label',letter+' harfi');b.onclick=()=>type(letter);div.append(b);});$('keys').append(div);});
 // Keep the approved artwork's proportions and aligned touch targets at every screen size.
-function fitMachine(){const viewport=$('machineViewport'),stage=$('machineStage');const scale=Math.max(0,Math.min(viewport.clientWidth/863,viewport.clientHeight/955));stage.style.width=(863*scale)+'px';stage.style.height=(955*scale)+'px';stage.style.fontSize=(51*scale)+'px';}
+function fitMachine(){const viewport=$('machineViewport'),stage=$('machineStage');const scale=Math.max(0,Math.min(viewport.clientWidth/863,viewport.clientHeight/955));stage.style.width=(863*scale)+'px';stage.style.height=(955*scale)+'px';}
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(fitMachine).observe($('machineViewport'));
 window.addEventListener('resize',fitMachine);fitMachine();
 document.addEventListener('keydown',e=>{if($('dialog').open)return;if(e.key==='Backspace'){e.preventDefault();erase();}else if(e.key==='Enter'){e.preventDefault();check();}else if(e.key.length===1){const letter=e.key.toLocaleUpperCase('tr-TR');if('ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZQWX'.includes(letter)){e.preventDefault();type(letter);}}});
 $('erase').onclick=erase;$('check').onclick=check;$('returnKey').onclick=check;$('hint').onclick=hint;$('skip').onclick=()=>{if(!busy)next();};$('chapters').onclick=chapters;$('settings').onclick=settings;$('closeDialog').onclick=close;
-$('dialogContent').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.chapter!==undefined){chapterQuestions(Number(b.dataset.chapter));return;}if(b.dataset.question!==undefined){close();go(Number(b.dataset.question));return;}switch(b.dataset.action){case'chapters':chapters();break;case'sound':state.sound=!state.sound;if(!state.sound)pauseSounds();save();settings();if(state.sound)sound();break;case'vibration':state.vibration=!state.vibration;save();settings();break;case'reset':show('<h2>Baştan başlansın mı?</h2><p>Çözülen sorular, puanlar ve açılan harfler silinir.</p><button class="action" data-action="reset-confirm">Evet, baştan başla</button><button class="action secondary" data-action="settings">Vazgeç</button>');break;case'reset-confirm':clearTimeout(autoAdvanceTimer);autoAdvanceTimer=null;state=fresh();cursor=0;busy=false;save();close();render();break;case'settings':settings();break;}});
+$('dialogContent').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.chapter!==undefined){chapterQuestions(Number(b.dataset.chapter));return;}if(b.dataset.question!==undefined){close();go(Number(b.dataset.question));return;}switch(b.dataset.action){case'chapters':chapters();break;case'sound':state.sound=!state.sound;if(!state.sound)pauseSounds();save();settings();if(state.sound)sound();break;case'vibration':state.vibration=!state.vibration;save();settings();break;case'reset':show('<h2>Baştan başlansın mı?</h2><p>Çözülen sorular, puanlar ve açılan harfler silinir.</p><button class="action" data-action="reset-confirm">Evet, baştan başla</button><button class="action secondary" data-action="settings">Vazgeç</button>');break;case'reset-confirm':machine.clearQueued();clearTimeout(autoAdvanceTimer);autoAdvanceTimer=null;state=fresh();cursor=0;busy=false;save();close();render();break;case'settings':settings();break;}});
 window.addEventListener('pagehide',save);window.addEventListener('blur',pauseSounds);document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseSounds();});
 cursor=nextEditable(0);save();render();

@@ -1,6 +1,6 @@
 # Daktilo Bulmaca
 
-Kolay başlayan 120 klasik Türkçe bulmaca sorusu; 12 sayfa. Sürüm 1.2.1 (5). İlk 30 soru kolay, sonraki 30 soru orta düzeydedir. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
+Kolay başlayan 120 klasik Türkçe bulmaca sorusu; 12 sayfa. Sürüm 1.3.0 (7). İlk 30 soru kolay, sonraki 30 soru orta düzeydedir. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
 
 ## Oyun
 
@@ -33,3 +33,5 @@ gradle :app:assembleRelease :app:bundleRelease
 `node tools/check-content.mjs` soru havuzunu denetler. `node tools/check-game.mjs` otomatik geçişi, yanlış cevap düzeltmesini, ipucuyla tamamlamayı ve son soru davranışını denetler. CI ayrıca Android lint çalıştırır. Sesler ve lisansları için `app/src/main/assets/sfx/CREDITS.md` dosyasına bakın. Gerçek cihazda ses, arka plana geçiş ve küçük ekran kontrolü yapılmalıdır.
 
 1.2.1: Tuş görseli ve dokunma alanları korunarak harfler daha büyük çizilir. Boyut, daktiloyla aynı oranda ölçeklenir.
+
+1.3.0: Fotoğraftaki özgün tuş dokuları geri getirildi. Canvas katmanı basılan tuşu çöktürür; 32 bağımsız harf kolu kendi pivotundan ortak baskı noktasına vurur. Harf ve vuruş sesi darbe anında işlenir; şaryo, kâğıt, şerit makaraları, geri silme ve satır dönüşü aynı mekanik kuyruğu kullanır. Bu, özgün 3B görünümlü resim üzerinde çalışan bir hareket simülasyonudur.
