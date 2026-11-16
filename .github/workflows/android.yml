@@ -48,6 +48,7 @@ jobs:
           else
             mkdir -p "$HOME/.android"
             if [ ! -f "$HOME/.android/debug.keystore" ]; then keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000; fi
+            printf 'DAKTILO_TEST_KEYSTORE=%s\n' "$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
             echo '### Test imzası kullanıldı; Google Play için üretim imzası gerekir.' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: APK ve AAB derle
@@ -62,6 +63,13 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk output/Daktilo-Bulmaca.apk
           cp app/build/outputs/bundle/release/app-release.aab output/Daktilo-Bulmaca.aab
           sha256sum output/* > output/SHA256SUMS.txt
+      - name: Test imzasının kayıtlı anahtarla eşleştiğini doğrula
+        run: |
+          if [ -n "$DAKTILO_TEST_KEYSTORE" ]; then
+            expected=$(keytool -exportcert -keystore "$DAKTILO_TEST_KEYSTORE" -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
+            actual=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs output/Daktilo-Bulmaca.apk | sed -n 's/Signer #1 certificate SHA-256 digest: //p')
+            test "$expected" = "$actual"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Daktilo-Bulmaca-Android
