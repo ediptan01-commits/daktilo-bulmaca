@@ -27,7 +27,9 @@ jobs:
         with:
           node-version: '22'
       - name: Soru havuzunu denetle
-        run: node tools/check-content.mjs
+        run: |
+          node tools/check-content.mjs
+          node tools/check-game.mjs
       - name: Test imzasını sonraki derlemeler için koru
         uses: actions/cache@v4
         with:

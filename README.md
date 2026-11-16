@@ -1,13 +1,15 @@
 # Daktilo Bulmaca
 
-Kolay başlayan 120 klasik Türkçe bulmaca sorusu; 12 sayfa. Sürüm 1.1.1 (3). İlk 30 soru kolay, sonraki 30 soru orta düzeydedir. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
+Kolay başlayan 120 klasik Türkçe bulmaca sorusu; 12 sayfa. Sürüm 1.2.0 (4). İlk 30 soru kolay, sonraki 30 soru orta düzeydedir. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
 
 ## Oyun
 
-- Büyütülmüş daktilo, üç standart Türkçe Q sırasında bütün genişliği dolduran büyük harfli tuşlar, gerçek daktilo kayıtlarından vuruş/şaryo sesleri, zil ve hareketli harf kolu.
+- Onaylanan gerçekçi 3B görünümlü daktilo illüstrasyonu, görseldeki yuvarlak tuşlarla hizalanan Türkçe Q dokunma alanları, gerçek daktilo kayıtlarından vuruş/şaryo sesleri, zil ve hareketli harf kolu.
 - Harf kutusuna dokunarak düzeltme, silme, harf açma, soruyu sonraya bırakma.
 - Her doğru cevap 100 puan; açılan her harf 15 puan düşürür (en az 20 puan). Her 5 doğru cevap 2 ipucu kazandırır.
+- Doğru cevaptan 850 ms sonra otomatik sonraki soruya geçiş; son soruda tamamlanma ekranı.
 - Bölüm/soru seçimi, cihazda otomatik kayıt, ses ve titreşim ayarları.
+- Kaydırma gerektirmeyen ekran düzeni: daktilo, görüntü oranı korunarak kalan yüksekliğe sığar.
 - Reklam, hesap, sunucu ve internet izni içermez.
 
 ## Derleme
@@ -28,4 +30,4 @@ gradle :app:assembleRelease :app:bundleRelease
 
 ## Doğrulama
 
-`node tools/check-content.mjs` soru havuzunu denetler. CI ayrıca Android lint çalıştırır. Sesler ve lisansları için `app/src/main/assets/sfx/CREDITS.md` dosyasına bakın. Gerçek cihazda ses, arka plana geçiş ve küçük ekran kontrolü yapılmalıdır.
+`node tools/check-content.mjs` soru havuzunu denetler. `node tools/check-game.mjs` otomatik geçişi, yanlış cevap düzeltmesini, ipucuyla tamamlamayı ve son soru davranışını denetler. CI ayrıca Android lint çalıştırır. Sesler ve lisansları için `app/src/main/assets/sfx/CREDITS.md` dosyasına bakın. Gerçek cihazda ses, arka plana geçiş ve küçük ekran kontrolü yapılmalıdır.
