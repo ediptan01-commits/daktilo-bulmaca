@@ -3,9 +3,22 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const source=fs.readFileSync(new URL('../app/src/main/assets/questions.js',import.meta.url),'utf8');
 const {QUESTIONS,CHAPTERS}=vm.runInNewContext(source+';({QUESTIONS,CHAPTERS})');
-assert.equal(QUESTIONS.length,60);
-assert.equal(CHAPTERS.length,6);
-assert.equal(new Set(QUESTIONS.map(q=>q.answer)).size,60,'Tekrarlanan cevap');
-for(const q of QUESTIONS){assert.ok(q.clue.length>12);assert.match(q.answer,/^[ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZQWX]+$/u);assert.ok(q.answer.length>=3&&q.answer.length<=14);assert.ok(q.chapter>=0&&q.chapter<6);}
-for(let i=0;i<6;i++)assert.equal(QUESTIONS.filter(q=>q.chapter===i).length,10);
-console.log('60 soru, 6 bölüm, benzersiz cevaplar ve Türkçe harfler doğrulandı.');
+assert.equal(QUESTIONS.length,120);
+assert.equal(CHAPTERS.length,12);
+assert.equal(new Set(QUESTIONS.map(q=>q.answer)).size,120,'Tekrarlanan cevap');
+for(const q of QUESTIONS){assert.ok(q.clue.length>12);assert.match(q.answer,/^[ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZQWX]+$/u);assert.ok(q.answer.length>=2&&q.answer.length<=14);assert.ok(q.chapter>=0&&q.chapter<12);}
+for(let i=0;i<12;i++)assert.equal(QUESTIONS.filter(q=>q.chapter===i).length,10);
+assert.ok(QUESTIONS.slice(0,30).every(q=>q.difficulty==='KOLAY'));
+assert.equal(QUESTIONS[0].answer,'ANKARA');
+const game=fs.readFileSync(new URL('../app/src/main/assets/game.js',import.meta.url),'utf8');
+const startup=game.slice(0,game.indexOf('let cursor='));
+const previous={version:1,current:28,solved:[0,2],score:120,hints:0,entries:{0:['M','Ü','C','E','L','L','İ','T']},locks:{0:[0]},sound:false};
+const migrated=vm.runInNewContext(source+';'+startup+';state',{localStorage:{getItem:()=>JSON.stringify(previous)}});
+assert.equal(migrated.current,0,'Güncellemeden sonra kolay başlangıç');
+assert.equal(migrated.score,120,'Eski puan korunmalı');
+assert.equal(migrated.solved.join(','),'60,62','Eski cevaplar doğru sorulara taşınmalı');
+assert.equal(QUESTIONS[60].answer,migrated.entries[60].join(''));
+assert.equal(migrated.sound,false,'Ses tercihi korunmalı');
+const reopened=vm.runInNewContext(source+';'+startup+';state',{localStorage:{getItem:()=>JSON.stringify({...migrated,version:1,current:4})}});
+assert.equal(reopened.current,4);assert.equal(reopened.solved.join(','),'60,62','Geçiş yalnızca bir kez uygulanmalı');
+console.log('120 soru, kolay başlangıç, 12 bölüm ve kayıt geçişi doğrulandı.');

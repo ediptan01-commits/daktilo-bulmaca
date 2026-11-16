@@ -28,6 +28,11 @@ jobs:
           node-version: '22'
       - name: Soru havuzunu denetle
         run: node tools/check-content.mjs
+      - name: Test imzasını sonraki derlemeler için koru
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: daktilo-bulmaca-test-signing-v1
       - name: İmza anahtarını hazırla
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

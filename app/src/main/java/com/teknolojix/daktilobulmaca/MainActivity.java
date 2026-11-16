@@ -11,6 +11,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
@@ -43,7 +44,7 @@ public class MainActivity extends Activity {
                 String path = uri.getPath();
                 if (!"https".equals(uri.getScheme()) || !HOST.equals(uri.getHost()) || path == null || !path.startsWith("/assets/") || path.contains("..")) return empty();
                 String file = path.substring(8);
-                String type = file.endsWith(".html") ? "text/html" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".png") ? "image/png" : "application/octet-stream";
+                String type = file.endsWith(".html") ? "text/html" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : file.endsWith(".wav") ? "audio/wav" : file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".png") ? "image/png" : "application/octet-stream";
                 try {
                     WebResourceResponse response = new WebResourceResponse(type, "UTF-8", getAssets().open(file));
                     Map<String,String> headers = new HashMap<>();
@@ -55,15 +56,20 @@ public class MainActivity extends Activity {
             }
             private WebResourceResponse empty() { return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, new ByteArrayInputStream(new byte[0])); }
         });
-        setContentView(web);
-        web.setOnApplyWindowInsetsListener((v, insets) -> {
+        // WebView's own padding does not reliably inset its HTML viewport.
+        // Inset the parent so both document content and touch targets avoid system bars.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.rgb(12,33,27));
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(root);
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
             if (android.os.Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
                 v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-            } else { v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom()); }
+            }
             return insets;
         });
-        web.requestApplyInsets();
+        root.requestApplyInsets();
         web.loadUrl("https://" + HOST + "/assets/index.html");
         if (android.os.Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
@@ -77,7 +83,7 @@ public class MainActivity extends Activity {
     private void handleBack() {
         web.evaluateJavascript("(function(){var d=document.getElementById('dialog');if(d&&d.open){d.close();return 'closed';}return 'exit';})()", value -> {if ("\"exit\"".equals(value)) new android.app.AlertDialog.Builder(this).setTitle("Daktilo kapatılsın mı?").setMessage("İlerlemen kaydedildi.").setPositiveButton("Kapat",(d,w)->finish()).setNegativeButton("Devam et",null).show();});
     }
-    @Override protected void onPause(){super.onPause();web.onPause();web.evaluateJavascript("if(typeof audio!=='undefined'&&audio)audio.suspend();",null);}
+    @Override protected void onPause(){super.onPause();web.evaluateJavascript("if(typeof pauseSounds==='function')pauseSounds();",null);web.onPause();}
     @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
     @Override protected void onDestroy(){if(web!=null){web.destroy();web=null;}super.onDestroy();}
 }

@@ -1,10 +1,10 @@
 # Daktilo Bulmaca
 
-Orta, zor ve usta düzeyinde 60 klasik Türkçe bulmaca sorusu; 6 sayfa. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
+Kolay başlayan 120 klasik Türkçe bulmaca sorusu; 12 sayfa. Sürüm 1.1.0 (2). İlk 30 soru kolay, sonraki 30 soru orta düzeydedir. Paket: `com.teknolojix.daktilobulmaca`. Android 6.0 ve üzeri. İnternetsiz çalışır.
 
 ## Oyun
 
-- Türkçe yuvarlak daktilo tuşları, mekanik vuruş ve şaryo sesleri, zil, hareketli harf kolu ve ilerleyen kâğıt.
+- Büyütülmüş daktilo, dört sıra hâlinde kenarlardan taşmayan Türkçe tuşlar, gerçek daktilo kayıtlarından vuruş/şaryo sesleri, zil ve hareketli harf kolu.
 - Harf kutusuna dokunarak düzeltme, silme, harf açma, soruyu sonraya bırakma.
 - Her doğru cevap 100 puan; açılan her harf 15 puan düşürür (en az 20 puan). Her 5 doğru cevap 2 ipucu kazandırır.
 - Bölüm/soru seçimi, cihazda otomatik kayıt, ses ve titreşim ayarları.
@@ -20,7 +20,7 @@ gradle :app:assembleRelease :app:bundleRelease
 
 ### Google Play imzası
 
-İlk çıktılar **test anahtarıyla imzalanır**, telefonda denemek içindir. Google Play yayını için depoya şu Actions secrets eklenmelidir: `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Workflow bunlar varsa üretim anahtarıyla imzalar. Özel anahtar kaynak koduna ya da artifact içine konulmaz. İlk Play yüklemesinden önce üretim anahtarını yapılandırın; güncellemelerde aynı anahtarı koruyun.
+İlk çıktılar **test anahtarıyla imzalanır**, telefonda denemek içindir. Google Play yayını için depoya şu Actions secrets eklenmelidir: `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Workflow bunlar varsa üretim anahtarıyla imzalar. Özel anahtar kaynak koduna ya da artifact içine konulmaz. Test anahtarı Actions cache içinde sonraki derlemeler için korunur; cache kalıcı bir üretim anahtarı yedeği değildir. İlk 1.0.0 test derlemesinde anahtar saklanmadığından 1.1.0 sürümü eski APK üzerine kurulamayabilir; eski uygulama kaldırılırsa Android yerel kaydı siler. Kod, aynı anahtarla güncellenen kurulumlarda eski 60 sorunun cevaplarını/puanlarını koruyup yeni kolay sorulara geçirir. İlk Play yüklemesinden önce üretim anahtarını yapılandırın; güncellemelerde aynı anahtarı koruyun.
 
 ## Web önizleme
 
@@ -28,4 +28,4 @@ gradle :app:assembleRelease :app:bundleRelease
 
 ## Doğrulama
 
-`node tools/check-content.mjs` soru havuzunu denetler. CI ayrıca Android lint çalıştırır. Gerçek cihazda ses, arka plana geçiş ve küçük ekran kontrolü yapılmalıdır.
+`node tools/check-content.mjs` soru havuzunu denetler. CI ayrıca Android lint çalıştırır. Sesler ve lisansları için `app/src/main/assets/sfx/CREDITS.md` dosyasına bakın. Gerçek cihazda ses, arka plana geçiş ve küçük ekran kontrolü yapılmalıdır.
