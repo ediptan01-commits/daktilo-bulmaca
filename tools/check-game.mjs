@@ -7,7 +7,7 @@ const mechanics=fs.readFileSync(new URL('mechanics.js',asset),'utf8');
 const game=fs.readFileSync(new URL('game.js',asset),'utf8');
 function start(saved){
  const elements=new Map(),timers=new Map(),rafs=new Map();let serial=0,clock=0;
- const drawing=new Proxy({createLinearGradient(){return {addColorStop(){}};}},{get(target,key){return target[key]||(()=>{});}});
+ const drawing=new Proxy({createLinearGradient(){return {addColorStop(){}};},createRadialGradient(){return {addColorStop(){}};}},{get(target,key){return target[key]||(()=>{});}});
  class Element {
   children=[];style={setProperty(key,value){this[key]=value;}};dataset={};className='';open=false;clientWidth=360;clientHeight=400;complete=true;naturalWidth=863;
   classList={add(){},remove(){},toggle(){}};
@@ -57,3 +57,10 @@ roll.flush();assert.equal(line.style.transform,'');assert.equal(sheet.style.heig
 for(let i=0;i<12;i++){roll.elements.get('skip').onclick();roll.flush();}
 assert.equal(roll.api.read().current,13,'Paper roll continues across chapters');
 console.log('Continuous upward feed, synchronized old/new lines, input lock and repeated feeds passed.');
+
+for(const key of a.api.keys){
+ assert.ok(key.x-37>=27&&key.x+37<=842,'Cap stays inside the original keyboard well');
+ for(const other of a.api.keys){if(other!==key&&other.y===key.y)assert.ok(Math.abs(other.x-key.x)>=81.5,'Horizontal gaps keep neighboring touch targets apart');}
+}
+assert.equal(new Set(a.api.keys.map(k=>k.y)).size,4);
+console.log('32 enlarged keys, four Q rows and non-overlapping touch targets passed.');

@@ -10,3 +10,6 @@ dialog{width:min(92%,420px);max-height:85svh;overflow:auto;border:1px solid #a98
 .paper-outgoing{position:absolute;inset:0 0 auto;pointer-events:none}
 @media(max-height:650px){.paper{padding:0}.paper-content{padding:8px 10px 5px}}
 @media(max-height:500px){.paper{padding:0}.paper-content{padding:7px 9px 4px}}
+
+/* Hit targets follow the separated photographic keys, leaving a real horizontal gap. */
+.key{width:8.575%;height:8.8%}
