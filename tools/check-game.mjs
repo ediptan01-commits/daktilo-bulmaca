@@ -58,9 +58,11 @@ for(let i=0;i<12;i++){roll.elements.get('skip').onclick();roll.flush();}
 assert.equal(roll.api.read().current,13,'Paper roll continues across chapters');
 console.log('Continuous upward feed, synchronized old/new lines, input lock and repeated feeds passed.');
 
+assert.equal(new Set(a.api.keys.map(k=>k.y)).size,3,'Restore the original three rows');
+const rows=[...new Set(a.api.keys.map(k=>k.y))].map(y=>a.api.keys.filter(k=>k.y===y).map(k=>k.letter).join(''));
+assert.equal(rows.join('/'),'QWERTYUIOPĞÜ/ASDFGHJKLŞİ/ZXCVBNMÖÇ');
 for(const key of a.api.keys){
- assert.ok(key.x-37>=27&&key.x+37<=842,'Cap stays inside the original keyboard well');
- for(const other of a.api.keys){if(other!==key&&other.y===key.y)assert.ok(Math.abs(other.x-key.x)>=81.5,'Horizontal gaps keep neighboring touch targets apart');}
+ assert.ok(key.y>key.sourceY-10&&key.y<key.sourceY+25,'Keys follow the enlarged photographic keyboard');
+ for(const other of a.api.keys){if(other!==key&&other.y===key.y)assert.ok(Math.abs(other.x-key.x)>863*.073,'Neighboring touch areas remain separate');}
 }
-assert.equal(new Set(a.api.keys.map(k=>k.y)).size,4);
-console.log('32 enlarged keys, four Q rows and non-overlapping touch targets passed.');
+console.log('Original photographic keyboard, larger key barrels and lettering, three Turkish Q rows verified.');

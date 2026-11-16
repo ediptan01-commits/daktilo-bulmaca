@@ -1,16 +1,12 @@
 'use strict';
 // All coordinates are in the approved photograph's original 863 × 1823 space.
-const KEY_DIAMETER=74,KEY_PITCH=81.5;
-const KEY_ROWS=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM','ĞÜŞİÖÇ'];
-const PHOTO_KEYS=[
+const KEY_ROWS=['QWERTYUIOPĞÜ','ASDFGHJKLŞİ','ZXCVBNMÖÇ'];
+const KEYBOARD_SCALE_Y=385/345;
+const TYPEWRITER_KEYS=[
  ...[...'QWERTYUIOPĞÜ'].map((letter,i)=>({letter,x:[66,141.5,211.5,276.5,346.5,413,481.5,549.5,615,680.5,748,812][i],y:1130})),
  ...[...'ASDFGHJKLŞİ'].map((letter,i)=>({letter,x:[84.5,159.5,233.5,307.5,380.5,452,520.5,591.5,662,734,802.5][i],y:1243})),
  ...[...'ZXCVBNMÖÇ'].map((letter,i)=>({letter,x:[114,196.5,279,360.5,442,524.5,607,686.5,769][i],y:1351}))
-];
-const TYPEWRITER_KEYS=KEY_ROWS.flatMap((row,r)=>[...row].map((letter,i)=>{
- const source=PHOTO_KEYS.find(k=>k.letter===letter);
- return {letter,x:431.5+(i-(row.length-1)/2)*KEY_PITCH,y:1095+r*94,sourceX:source.x,sourceY:source.y};
-}));
+].map(key=>({...key,sourceY:key.y,y:1055+(key.y-1070)*KEYBOARD_SCALE_Y}));
 const TYPEWRITER_STRIKE={x:431.5,y:768};
 function typebarGeometry(letter){
  const key=TYPEWRITER_KEYS.find(k=>k.letter===letter);if(!key)return null;
@@ -39,29 +35,27 @@ class TypewriterMechanism {
   if(a.progress>=1){this.active=null;a.onDone?.();this.draw();this.startNext();}else this.raf=requestAnimationFrame(next=>this.frame(next));
  }
  returnCarriage(onImpact,onDone,onProgress){this.clearQueued();this.enqueue({kind:'return',onImpact,onDone,onProgress});}
- drawKey(key,depth=0){
-  const c=this.ctx,x=key.x,y=key.y-670+depth;
-  // Preserve the photographic brass rim and barrel; enlarge the cream face and ink.
-  c.save();c.shadowColor='#000';c.shadowBlur=7;c.shadowOffsetY=5;
-  c.beginPath();c.ellipse(x,y+7,37,43,0,0,Math.PI*2);c.fillStyle='#302214';c.fill();
-  c.shadowBlur=0;c.shadowOffsetY=0;c.clip();
-  c.drawImage(this.image,key.sourceX-34,key.sourceY-38,68,84,x-37,y-39,74,88);
-  const ivory=c.createRadialGradient(x-9,y-12,2,x,y,31);
-  ivory.addColorStop(0,'#fff3cc');ivory.addColorStop(.7,'#f3dfaf');ivory.addColorStop(1,'#ddc18a');
-  c.beginPath();c.ellipse(x,y-2,30.5,30.5,0,0,Math.PI*2);c.fillStyle=ivory;c.fill();
-  c.fillStyle='#211b13';c.font='italic bold 44px Georgia, serif';c.textAlign='center';c.textBaseline='middle';
-  c.fillText(key.letter,x,y-1);c.restore();
+ depressedPatch(key,depth){
+  const c=this.ctx,x=key.x,y=key.y-670;
+  c.save();c.beginPath();c.ellipse(x,y+7,35,49,0,0,Math.PI*2);c.clip();
+  c.fillStyle='#15190f';c.fillRect(x-36,y-46,72,102);
+  c.drawImage(this.image,x-35,key.sourceY-38,70,88,x-35,y-42+depth,70,88*KEYBOARD_SCALE_Y);c.restore();
  }
  drawKeyboard(){
   const c=this.ctx;
+  // Magnify only the original photographed keyboard, keeping its brass, shadows and rods.
   c.save();c.beginPath();c.roundRect(27,385,815,385,24);c.clip();
-  const well=c.createLinearGradient(0,385,0,770);well.addColorStop(0,'#10150e');well.addColorStop(.55,'#212017');well.addColorStop(1,'#0d130d');
-  c.fillStyle=well;c.fillRect(27,385,815,385);
-  // Individual metal stems retain the mechanical depth behind the separated caps.
-  for(const key of TYPEWRITER_KEYS){const y=key.y-670;c.fillStyle='#655236';c.fillRect(key.x-3,y+16,6,48);c.fillStyle='#b3955e';c.fillRect(key.x-2,y+18,2,44);}
-  const activeKey=this.active?.kind==='key'?this.active.letter:null;
-  const p=this.active?.progress||0,depth=Math.max(0,(p<.38?p/.38:(1-p)/.62)*6);
-  for(const key of TYPEWRITER_KEYS)this.drawKey(key,key.letter===activeKey?depth:0);
+  c.drawImage(this.image,27,1070,815,345,27,385,815,385);
+  const a=this.active,p=a?.progress||0;
+  const key=a?.kind==='key'?TYPEWRITER_KEYS.find(k=>k.letter===a.letter):null;
+  const depth=key?Math.max(0,(p<.38?p/.38:(1-p)/.62)*6):0;
+  if(key)this.depressedPatch(key,depth);
+  for(const k of TYPEWRITER_KEYS){
+   const y=k.y-670+(k===key?depth:0);
+   // Enlarge the actual printed letter; retain the original face texture and font.
+   c.save();c.beginPath();c.ellipse(k.x,y-3,26,30,0,0,Math.PI*2);c.clip();
+   c.drawImage(this.image,k.x-24,k.sourceY-30,48,60,k.x-29,y-35,58,67);c.restore();
+  }
   c.restore();
  }
 
