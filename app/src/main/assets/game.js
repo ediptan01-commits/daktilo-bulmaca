@@ -59,8 +59,32 @@ function erase(){if(busy||isSolved())return;strike('','erase',()=>{let i=cursor;
 function check(){if(busy)return;if(isSolved()){next();return;}if(!entry().every(Boolean)){feedback('Cevabın bütün harflerini tamamla.');return;}if(entry().join('')!==q().answer){sound('wrong');animate($('paper'),'shake');feedback('Bu cevap uymadı. Harfleri yeniden düşün.','error');return;}
  machine.clearQueued();state.solved.push(q().id);const points=Math.max(20,100-locks().length*15);state.score+=points;if(state.solved.length%5===0)state.hints+=2;save();render();feedback(`Doğru! +${points} puan${state.solved.length%5===0?' · 2 harf açma kazandın':''}`,'success');busy=true;const completedId=q().id;autoAdvanceTimer=setTimeout(()=>{autoAdvanceTimer=null;busy=false;if(q().id!==completedId||!state.solved.includes(completedId))return;if(state.solved.length===QUESTIONS.length){show(`<h2>Bütün satırlar tamam!</h2><p>${QUESTIONS.length} sorunun tamamını çözdün.</p><p class="answer">${state.score} PUAN</p><button class="action" data-action="chapters">Bölümleri gör</button>`);}else{next();}},850);
 }
-function go(id){if(busy)return;machine.clearQueued();state.current=id;cursor=nextEditable(0);save();render();animate($('paper'),'advance');}
-function next(playSound=true){if(busy)return;let id=(q().id+1)%QUESTIONS.length;for(let n=0;n<QUESTIONS.length;n++){const c=(q().id+1+n)%QUESTIONS.length;if(!state.solved.includes(c)){id=c;break;}}busy=true;if(playSound)sound('return');machine.returnCarriage(()=>{state.current=id;cursor=nextEditable(0);save();render();animate($('paper'),'advance');},()=>{busy=false;});}
+function go(id){if(busy)return;machine.clearQueued();state.current=id;cursor=nextEditable(0);save();render();}
+// Reuse one sheet; only the previous and next printed lines exist during a feed.
+function feedTo(id,playSound=true){
+ if(busy)return;
+ busy=true;machine.clearQueued();
+ const paper=$('paper'),content=$('paperContent'),outgoing=content.cloneNode(true);
+ outgoing.removeAttribute('id');outgoing.querySelectorAll('[id]').forEach(el=>{el.setAttribute('data-paper-id',el.id);el.removeAttribute('id');});
+ outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;outgoing.classList.add('paper-outgoing');
+ const oldHeight=content.getBoundingClientRect().height;
+ state.current=id;cursor=nextEditable(0);save();render();
+ const distance=Math.max(oldHeight,content.getBoundingClientRect().height);
+ paper.style.height=distance+'px';paper.append(outgoing);paper.classList.add('feeding');
+ const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ function move(progress){
+  const t=reduced?1:progress*progress*(3-2*progress);
+  outgoing.style.transform=`translateY(${-distance*t}px)`;
+  content.style.transform=`translateY(${distance*(1-t)}px)`;
+  paper.style.backgroundPosition=`0 ${-distance*t}px`;
+ }
+ move(0);if(playSound)sound('return');
+ machine.returnCarriage(()=>{},()=>{
+  outgoing.remove();content.style.transform='';paper.style.height='';paper.style.backgroundPosition='';paper.classList.remove('feeding');busy=false;
+ },move);
+}
+function next(playSound=true){if(busy)return;let id=(q().id+1)%QUESTIONS.length;for(let n=0;n<QUESTIONS.length;n++){const c=(q().id+1+n)%QUESTIONS.length;if(!state.solved.includes(c)){id=c;break;}}feedTo(id,playSound);}
+
 function hint(){if(busy||isSolved()||state.hints<=0||machine.isWorking())return;const pos=entry().findIndex((c,i)=>c!==q().answer[i]&&!locks().includes(i));if(pos<0){check();return;}strike(q().answer[pos],'key',()=>{entry()[pos]=q().answer[pos];locks().push(pos);state.hints--;cursor=nextEditable(pos+1);save();render();renderSlots(entry().every(Boolean)?entry().length:cursor);feedback('Bir harf açıldı.');if(entry().every(Boolean))check();});}
 function show(html){$('dialogContent').innerHTML=html;if(!$('dialog').open)$('dialog').showModal();}
 function close(){$('dialog').close();}

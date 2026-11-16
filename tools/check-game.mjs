@@ -14,6 +14,8 @@ function start(saved){
   set textContent(value){this.text=String(value);this.children=[];}
   get textContent(){return (this.text||'')+this.children.map(c=>c.textContent).join('');}
   append(...items){this.children.push(...items);}replaceChildren(...items){this.children=items;}
+  getBoundingClientRect(){return {height:180};}
+  cloneNode(){return new Element();}querySelectorAll(){return [];}removeAttribute(){}remove(){}
   setAttribute(){}addEventListener(){}showModal(){this.open=true;}close(){this.open=false;}getContext(){return drawing;}
  }
  const document={getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},createElement(){return new Element();},body:new Element(),addEventListener(){},querySelector(){return new Element();},querySelectorAll(){return [];}};
@@ -40,3 +42,18 @@ assert.equal(new Set(pivots.map(g=>`${g.pivot.x},${g.pivot.y}`)).size,32,'Each l
 assert.equal(new Set(pivots.map(g=>`${g.strike.x},${g.strike.y}`)).size,1,'All bars must hit the same physical print point');
 const back=start();back.api.type('A');back.flush();assert.equal(back.elements.get('mechanicsCanvas').dataset.column,'1');back.api.erase();back.flush();assert.equal(back.api.read().entries[0].join(''),'');assert.equal(back.elements.get('mechanicsCanvas').dataset.column,'0');
 console.log('32 independent typebars, impact timing, carriage return, backspace, queued input and auto advance passed.');
+
+const roll=start();roll.elements.get('skip').onclick();
+const sheet=roll.elements.get('paper'),line=roll.elements.get('paperContent');
+assert.equal(roll.api.read().current,1);
+assert.equal(line.style.transform,'translateY(180px)');
+const outgoing=sheet.children.at(-1);
+roll.advance(400);
+const middle=Number(line.style.transform.match(/[-\d.]+/)[0]);
+assert.ok(middle>0&&middle<180,'Next line must enter from below');
+assert.ok(Number(outgoing.style.transform.match(/[-\d.]+/)[0])<0,'Old line must leave upwards');
+roll.elements.get('skip').onclick();assert.equal(roll.api.read().current,1,'Feed blocks double navigation');
+roll.flush();assert.equal(line.style.transform,'');assert.equal(sheet.style.height,'');
+for(let i=0;i<12;i++){roll.elements.get('skip').onclick();roll.flush();}
+assert.equal(roll.api.read().current,13,'Paper roll continues across chapters');
+console.log('Continuous upward feed, synchronized old/new lines, input lock and repeated feeds passed.');

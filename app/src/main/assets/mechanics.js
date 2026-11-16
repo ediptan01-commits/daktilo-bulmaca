@@ -27,12 +27,12 @@ class TypewriterMechanism {
  enqueue(job){this.queue.push(job);this.startNext();}
  startNext(){if(this.active||!this.queue.length)return;this.active={...this.queue.shift(),started:null,hit:false};this.canvas.dataset.lastKey=this.active.letter||'RETURN';const g=typebarGeometry(this.active.letter);if(g){this.canvas.dataset.pivotX=String(g.pivot.x);this.canvas.dataset.pivotY=String(g.pivot.y);}this.active.onStart?.();this.raf=requestAnimationFrame(t=>this.frame(t));}
  frame(t){const a=this.active;if(!a)return;if(a.started===null)a.started=t;const elapsed=t-a.started;
-  a.progress=Math.min(1,elapsed/(a.kind==='return'?430:170));
+  a.progress=Math.min(1,elapsed/(a.kind==='return'?780:170));
   if(!a.hit&&elapsed>=(a.kind==='return'?210:65)){a.hit=true;if(a.kind==='return'){this.column=0;this.feed=(this.feed+1)%3;}else if(a.kind==='key'){this.spool+=.008;}this.canvas.dataset.impacts=String((Number(this.canvas.dataset.impacts)||0)+1);a.onImpact?.();this.syncPaper();}
-  this.draw();
+  a.onProgress?.(a.progress);this.draw();
   if(a.progress>=1){this.active=null;a.onDone?.();this.draw();this.startNext();}else this.raf=requestAnimationFrame(next=>this.frame(next));
  }
- returnCarriage(onImpact,onDone){this.clearQueued();this.enqueue({kind:'return',onImpact,onDone});}
+ returnCarriage(onImpact,onDone,onProgress){this.clearQueued();this.enqueue({kind:'return',onImpact,onDone,onProgress});}
  depressedPatch(key,depth){const c=this.ctx,w=70,h=87,x=key.x-w/2,y=key.y-36;
   c.save();c.beginPath();c.ellipse(key.x,key.y-670+6,w/2+2,h/2,0,0,Math.PI*2);c.clip();
   c.fillStyle='#15190f';c.fillRect(x-3,y-670-3,w+6,h+8);
