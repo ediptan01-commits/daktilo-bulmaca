@@ -1,0 +1,66 @@
+name: Android APK ve AAB
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK 36
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Soru havuzunu denetle
+        run: node tools/check-content.mjs
+      - name: İmza anahtarını hazırla
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            chmod 600 "$RUNNER_TEMP/release.jks"
+            printf 'RELEASE_STORE_FILE=%s\n' "$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            mkdir -p "$HOME/.android"
+            if [ ! -f "$HOME/.android/debug.keystore" ]; then keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000; fi
+            echo '### Test imzası kullanıldı; Google Play için üretim imzası gerekir.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: APK ve AAB derle
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle --no-daemon :app:assembleRelease :app:bundleRelease :app:lintRelease
+      - name: Dosyaları hazırla
+        run: |
+          mkdir -p output
+          cp app/build/outputs/apk/release/app-release.apk output/Daktilo-Bulmaca.apk
+          cp app/build/outputs/bundle/release/app-release.aab output/Daktilo-Bulmaca.aab
+          sha256sum output/* > output/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Daktilo-Bulmaca-Android
+          path: output/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Geçici imza anahtarını sil
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
