@@ -65,8 +65,16 @@ public class MainActivity extends Activity {
         });
         web.requestApplyInsets();
         web.loadUrl("https://" + HOST + "/assets/index.html");
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+        }
     }
+    // Legacy Android 6–12 support; Android 13+ uses the dispatcher registered above.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() {
+        handleBack();
+    }
+    private void handleBack() {
         web.evaluateJavascript("(function(){var d=document.getElementById('dialog');if(d&&d.open){d.close();return 'closed';}return 'exit';})()", value -> {if ("\"exit\"".equals(value)) new android.app.AlertDialog.Builder(this).setTitle("Daktilo kapatılsın mı?").setMessage("İlerlemen kaydedildi.").setPositiveButton("Kapat",(d,w)->finish()).setNegativeButton("Devam et",null).show();});
     }
     @Override protected void onPause(){super.onPause();web.onPause();web.evaluateJavascript("if(typeof audio!=='undefined'&&audio)audio.suspend();",null);}
